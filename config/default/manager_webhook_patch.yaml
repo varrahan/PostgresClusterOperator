@@ -1,0 +1,25 @@
+# Adds webhook server configuration
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-operator-controller-manager
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        args:
+        - "--enable-webhooks=true"
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        volumeMounts:
+        - name: cert
+          mountPath: /tmp/k8s-webhook-server/serving-certs
+          readOnly: true
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: webhook-server-cert

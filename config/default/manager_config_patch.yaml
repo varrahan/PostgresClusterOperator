@@ -1,0 +1,21 @@
+# Adds configuration file mount to manager
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-operator-controller-manager
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        volumeMounts:
+        - name: manager-config
+          mountPath: /etc/manager
+          readOnly: true
+        env:
+        - name: CONFIG_FILE
+          value: /etc/manager/controller_manager_config.yaml
+      volumes:
+      - name: manager-config
+        configMap:
+          name: manager-config

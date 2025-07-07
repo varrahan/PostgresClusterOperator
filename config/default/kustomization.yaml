@@ -1,0 +1,39 @@
+resources:
+- ../manager
+- ../rbac
+
+# Apply patches to manager deployment
+patches:
+- path: manager_auth_proxy_patch.yaml
+  target:
+    kind: Deployment
+    name: postgres-operator-controller-manager
+- path: manager_config_patch.yaml
+  target:
+    kind: Deployment
+    name: postgres-operator-controller-manager
+- path: manager_webhook_patch.yaml
+  target:
+    kind: Deployment
+    name: postgres-operator-controller-manager
+
+# Configure certificate manager (if using webhooks)
+configMapGenerator:
+- name: manager-config
+  files:
+  - controller_manager_config.yaml
+
+# Set namespace for all resources
+namespace: postgres-operator-system
+
+# Common labels for all resources
+commonLabels:
+  app.kubernetes.io/name: postgres-operator
+  app.kubernetes.io/instance: default
+  app.kubernetes.io/component: controller
+
+# Configure image overrides
+images:
+- name: controller
+  newName: your-registry/postgres-operator
+  newTag: v1.5.0
