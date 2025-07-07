@@ -1,0 +1,12 @@
+apiVersion: database.example.com/v1
+kind: PostgresUser
+metadata:
+  name: app-user
+spec:
+  clusterRef:
+    name: example-cluster
+  username: "appuser"
+  databases: ["appdb"]
+  privileges: ["CREATEDB", "LOGIN"]
+  passwordSecret:
+    name: appuser-password

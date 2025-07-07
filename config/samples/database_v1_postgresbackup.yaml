@@ -1,0 +1,17 @@
+apiVersion: database.example.com/v1
+kind: PostgresBackup
+metadata:
+  name: example-backup
+spec:
+  clusterRef:
+    name: example-cluster
+  backupType: "full"
+  storage:
+    s3:
+      bucket: "my-backup-bucket"
+      endpoint: "s3.amazonaws.com"
+      region: "us-east-1"
+      secretName: "s3-credentials"
+  retentionPolicy:
+    keepLast: 5
+    expireAfter: "720h" # 30 days
