@@ -4,6 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
 // PostgresClusterSpec defines the desired state of PostgresCluster
 type PostgresClusterSpec struct {
 	// Replicas is the number of PostgreSQL instances in the cluster
@@ -31,6 +33,9 @@ type PostgresClusterSpec struct {
 	Monitoring MonitoringSpec `json:"monitoring,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+// DatabaseSpec defines database initialization
 type DatabaseSpec struct {
 	// Name of the default database
 	Name string `json:"name,omitempty"`
@@ -42,7 +47,13 @@ type DatabaseSpec struct {
 	Parameters map[string]string `json:"parameters,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+// StorageSpec defines the storage used by databases within a cluster
 type StorageSpec struct {
+    // VolumeName specifies the name of the PersistentVolumeClaim
+    VolumeName string `json:"volumeName,omitempty"`
+
 	// Size of the storage volume
 	Size string `json:"size,omitempty"`
 
@@ -53,6 +64,9 @@ type StorageSpec struct {
 	AccessModes []string `json:"accessModes,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+// ResourceRequirements defines the resources required to run a cluster
 type ResourceRequirements struct {
 	// CPU resource requirements
 	CPU string `json:"cpu,omitempty"`
@@ -64,6 +78,8 @@ type ResourceRequirements struct {
 	Storage string `json:"storage,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
 type HASpec struct {
 	// Enabled indicates if HA is enabled
 	Enabled bool `json:"enabled,omitempty"`
@@ -75,6 +91,8 @@ type HASpec struct {
 	FailoverTimeout int32 `json:"failoverTimeout,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
 type BackupSpec struct {
 	// Enabled indicates if backup is enabled
 	Enabled bool `json:"enabled,omitempty"`
@@ -89,6 +107,8 @@ type BackupSpec struct {
 	Storage BackupStorageSpec `json:"storage,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
 type BackupStorageSpec struct {
 	// Type of backup storage (s3, gcs, azure, local)
 	Type string `json:"type,omitempty"`
@@ -97,6 +117,8 @@ type BackupStorageSpec struct {
 	Config map[string]string `json:"config,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
 type MonitoringSpec struct {
 	// Enabled indicates if monitoring is enabled
 	Enabled bool `json:"enabled,omitempty"`
@@ -105,6 +127,8 @@ type MonitoringSpec struct {
 	Prometheus PrometheusSpec `json:"prometheus,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
 type PrometheusSpec struct {
 	// Enabled indicates if Prometheus monitoring is enabled
 	Enabled bool `json:"enabled,omitempty"`
@@ -116,6 +140,8 @@ type PrometheusSpec struct {
 	Path string `json:"path,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
 // PostgresClusterStatus defines the observed state of PostgresCluster
 type PostgresClusterStatus struct {
 	// Phase represents the current phase of the cluster
