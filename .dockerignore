@@ -1,0 +1,61 @@
+# Binaries
+bin/
+build/
+dist/
+
+# Operator SDK generated files (build cache, bundle output)
+bundle/
+cover.out
+
+# Go build cache & modules
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.a
+
+# Vendor folder (if you vendor but build inside container, keep this!)
+vendor/
+
+# Dependency directories
+Gopkg.lock
+Gopkg.toml
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs & temp files
+*.log
+*.tmp
+
+# Git
+.git
+.gitignore
+
+# Tests data / generated mocks
+testdata/
+mocks/
+mock/
+
+# Docker files
+Dockerfile*
+.dockerignore
+
+# Helm charts if not needed
+helm-charts/
+
+# Kubernetes config
+*.kube/
+
+# Other operator-sdk specific output
+/tmp/
