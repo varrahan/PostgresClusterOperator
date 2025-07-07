@@ -1,0 +1,17 @@
+# Kustomization for OLM manifests
+resources:
+- bases/postgres-operator.clusterserviceversion.yaml
+
+# Configure name prefix/suffix
+namePrefix: postgres-operator-
+nameSuffix: -v1.5.0
+
+# Set common labels
+commonLabels:
+  operators.coreos.com/postgres-operator.postgres-operator-system: ""
+
+# Images to override
+images:
+- name: controller
+  newName: your-registry/postgres-operator
+  newTag: v1.5.0

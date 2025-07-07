@@ -1,0 +1,117 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: postgres-operator.v1.5.0
+  namespace: placeholder
+  annotations:
+    alm-examples: |
+      [
+        {
+          "apiVersion": "database.example.com/v1",
+          "kind": "PostgresCluster",
+          "metadata": {
+            "name": "example-cluster"
+          },
+          "spec": {
+            "replicas": 3,
+            "postgresVersion": "14",
+            "storage": {
+              "size": "10Gi",
+              "storageClass": "standard"
+            },
+            "backup": {
+              "enabled": true,
+              "schedule": "0 0 * * *",
+              "retention": "30d"
+            }
+          }
+        }
+      ]
+    capabilities: "Seamless Upgrades, Full Lifecycle, Deep Insights, Auto Pilot"
+    categories: "Database"
+    containerImage: "your-registry/postgres-operator:v1.5.0"
+    createdAt: "2025-07-07"
+    description: "Operator for managing PostgreSQL clusters on Kubernetes"
+    support: "Example Inc."
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - name: postgresclusters.database.example.com
+      version: v1
+      kind: PostgresCluster
+      displayName: "PostgreSQL Cluster"
+      description: "Represents a PostgreSQL cluster deployment"
+    - name: postgresusers.database.example.com
+      version: v1
+      kind: PostgresUser
+      displayName: "PostgreSQL User"
+      description: "Represents a PostgreSQL database user"
+    - name: postgresbackups.database.example.com
+      version: v1
+      kind: PostgresBackup
+      displayName: "PostgreSQL Backup"
+      description: "Represents a PostgreSQL backup operation"
+  description: |
+    The PostgreSQL Operator automates the deployment and management of PostgreSQL clusters on Kubernetes.
+    It provides features like high availability, backups, restoration, and user management.
+  displayName: PostgreSQL Operator
+  install:
+    spec:
+      deployments:
+      - name: postgres-operator-controller-manager
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              control-plane: controller-manager
+          template:
+            metadata:
+              labels:
+                control-plane: controller-manager
+            spec:
+              containers:
+              - command:
+                - /manager
+                args:
+                - --leader-elect
+                image: your-registry/postgres-operator:v1.5.0
+                name: manager
+                resources:
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+                  requests:
+                    cpu: 100m
+                    memory: 128Mi
+              serviceAccountName: postgres-operator-controller-manager
+    strategy: deployment
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - postgresql
+  - database
+  - sql
+  - ha
+  - backup
+  links:
+  - name: Documentation
+    url: https://github.com/example/postgres-operator/docs
+  - name: Source Code
+    url: https://github.com/example/postgres-operator
+  maintainers:
+  - email: support@example.com
+    name: Example Team
+  maturity: production
+  provider:
+    name: Example Inc.
+    url: https://example.com
+  replaces: postgres-operator.v1.4.0
+  version: 1.5.0

@@ -1,0 +1,12 @@
+resources:
+- manager.yaml
+- service_account.yaml
+
+# Set namespace for all resources
+namespace: system
+
+# Configure image overrides
+images:
+- name: controller
+  newName: your-registry/postgres-operator
+  newTag: v1.5.0
