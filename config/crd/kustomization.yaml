@@ -1,0 +1,25 @@
+# Kustomization for CRD generation
+resources:
+- bases/database.example.com_postgresclusters.yaml
+- bases/database.example.com_postgresusers.yaml
+- bases/database.example.com_postgresbackups.yaml
+
+# Apply patches to CRDs
+patches:
+- path: patches/cainjection_in_postgresclusters.yaml
+  target:
+    group: apiextensions.k8s.io
+    version: v1
+    kind: CustomResourceDefinition
+    name: postgresclusters.database.example.com
+- path: patches/webhook_in_postgresclusters.yaml
+  target:
+    group: apiextensions.k8s.io
+    version: v1
+    kind: CustomResourceDefinition
+    name: postgresclusters.database.example.com
+
+# Set common labels
+commonLabels:
+  app.kubernetes.io/name: postgres-operator
+  app.kubernetes.io/version: v1.5.0
