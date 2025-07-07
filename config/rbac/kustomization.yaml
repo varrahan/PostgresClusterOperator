@@ -1,0 +1,22 @@
+resources:
+- service_account.yaml
+- role.yaml
+- role_binding.yaml
+- leader_election_role.yaml
+- leader_election_role_binding.yaml
+- auth_proxy_role.yaml
+- auth_proxy_role_binding.yaml
+- auth_proxy_client_clusterrole.yaml
+- postgrescluster_editor_role.yaml
+- postgrescluster_viewer_role.yaml
+
+# Set namespace for all resources
+namespace: postgres-operator-system
+
+# Common labels
+commonLabels:
+  app.kubernetes.io/name: postgres-operator
+  app.kubernetes.io/component: rbac
+
+# Name prefix for generated resources
+namePrefix: postgres-operator-

@@ -1,0 +1,12 @@
+# Role for cluster viewers
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: postgrescluster-viewer
+rules:
+- apiGroups: ["database.example.com"]
+  resources: ["postgresclusters"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["database.example.com"]
+  resources: ["postgresclusters/status"]
+  verbs: ["get"]

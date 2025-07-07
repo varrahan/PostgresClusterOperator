@@ -1,0 +1,12 @@
+# Role for cluster editors
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: postgrescluster-editor
+rules:
+- apiGroups: ["database.example.com"]
+  resources: ["postgresclusters"]
+  verbs: ["create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"]
+- apiGroups: ["database.example.com"]
+  resources: ["postgresclusters/status"]
+  verbs: ["get"]
