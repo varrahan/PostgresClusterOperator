@@ -7,8 +7,9 @@ namePrefix: postgres-operator-
 nameSuffix: -v1.5.0
 
 # Set common labels
-commonLabels:
-  operators.coreos.com/postgres-operator.postgres-operator-system: ""
+labels:
+- pairs: 
+    operators.coreos.com/postgres-operator.postgres-operator-system: ""
 
 # Images to override
 images:
