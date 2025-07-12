@@ -4,6 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +groupName=database.example.com
+
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
 // PostgresClusterSpec defines the desired state of PostgresCluster
@@ -104,17 +106,17 @@ type BackupSpec struct {
 	RetentionPolicy string `json:"retentionPolicy,omitempty"`
 
 	// Storage configuration for backups
-	Storage BackupStorageSpec `json:"storage,omitempty"`
+	Storage BackupStorageSpec `json:"storage"`
 }
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
 type BackupStorageSpec struct {
 	// Type of backup storage (s3, gcs, azure, local)
-	Type string `json:"type,omitempty"`
+	Type string `json:"type"`
 
 	// Configuration for the backup storage
-	Config map[string]string `json:"config,omitempty"`
+	Config map[string]string `json:"config"`
 }
 
 // +k8s:deepcopy-gen=true

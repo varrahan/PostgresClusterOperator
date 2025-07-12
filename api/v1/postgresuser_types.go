@@ -4,6 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +groupName=database.example.com
+
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
 // PostgresUserSpec defines the desired state of PostgresUser
@@ -21,7 +23,7 @@ type PostgresUserSpec struct {
 
 	// Password configuration for the user
 	// +optional
-	Password PasswordSpec `json:"password,omitempty"`
+	Password PasswordSpec `json:"password"`
 
 	// Privileges defines the roles/privileges granted to the user
 	// +kubebuilder:validation:MaxItems=20

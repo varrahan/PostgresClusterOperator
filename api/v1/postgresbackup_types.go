@@ -4,6 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +groupName=database.example.com
+
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
 // BackupReference references a PostgresBackup resource
@@ -124,8 +126,12 @@ type PostgresBackupStatus struct {
 	JobName string `json:"jobName,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:path=postgresbackups,scope=Namespaced,singular=postgresbackup,shortName=pgbackup;pgbackups
+// +kubebuilder:storageversion
+// +groupName=database.example.com  // ADD THIS (change to your domain)
 // +kubebuilder:printcolumn:name="Cluster",type=string,JSONPath=`.spec.clusterRef.name`
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`

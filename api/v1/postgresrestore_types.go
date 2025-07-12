@@ -4,6 +4,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +groupName=database.example.com
+
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
 // PostgresRestoreSpec defines the desired state of PostgresRestore
 type PostgresRestoreSpec struct {
 	// BackupRef references the backup to restore from
@@ -16,6 +20,8 @@ type PostgresRestoreSpec struct {
 	Options RestoreOptions `json:"options,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
 // RestoreOptions defines options for the restore operation
 type RestoreOptions struct {
 	// DropExisting drops existing databases before restore
@@ -59,8 +65,7 @@ type PostgresRestoreStatus struct {
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 //+kubebuilder:printcolumn:name="Message",type=string,JSONPath=`.status.message`
 //+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
-
-// PostgresRestore is the Schema for the postgresrestores API
+// PostgresRestore is the Schema for the postgresrestore API
 type PostgresRestore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -70,7 +75,6 @@ type PostgresRestore struct {
 }
 
 //+kubebuilder:object:root=true
-
 // PostgresRestoreList contains a list of PostgresRestore
 type PostgresRestoreList struct {
 	metav1.TypeMeta `json:",inline"`
