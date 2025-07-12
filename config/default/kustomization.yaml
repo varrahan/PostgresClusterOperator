@@ -1,4 +1,6 @@
 resources:
+- ../crd
+- namespace.yaml
 - ../manager
 - ../rbac
 
@@ -27,10 +29,11 @@ configMapGenerator:
 namespace: postgres-operator-system
 
 # Common labels for all resources
-commonLabels:
-  app.kubernetes.io/name: postgres-operator
-  app.kubernetes.io/instance: default
-  app.kubernetes.io/component: controller
+labels:
+- pairs:
+    app.kubernetes.io/name: postgres-operator
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/component: controller
 
 # Configure image overrides
 images:
