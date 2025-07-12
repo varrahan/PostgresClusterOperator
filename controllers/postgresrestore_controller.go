@@ -26,9 +26,9 @@ type PostgresRestoreReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=database.example.com,resources=postgresrestores,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=database.example.com,resources=postgresrestores/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=database.example.com,resources=postgresrestores/finalizers,verbs=update
+//+kubebuilder:rbac:groups=database.example.com,resources=postgresrestore,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=database.example.com,resources=postgresrestore/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=database.example.com,resources=postgresrestore/finalizers,verbs=update
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
 func (r *PostgresRestoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
