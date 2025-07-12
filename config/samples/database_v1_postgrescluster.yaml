@@ -11,8 +11,14 @@ spec:
   backup:
     enabled: true
     schedule: "0 0 * * *"
-    retention: "30d"
+    retentionPolicy: "30d"
+    storage:
+      type: s3
+      config: 
+        bucket: "my-backup-bucket"
+        endpoint: "s3.amazonaws.com"
+        region: "us-east-1"
+        secretName: "s3-credentials"
   resources:
-    requests:
-      cpu: 500m
-      memory: 1Gi
+    cpu: 500m
+    memory: 1Gi

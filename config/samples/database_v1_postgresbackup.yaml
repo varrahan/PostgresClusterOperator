@@ -5,13 +5,13 @@ metadata:
 spec:
   clusterRef:
     name: example-cluster
-  backupType: "full"
+  type: "full"
   storage:
-    s3:
+    type: "local"
+    config: 
       bucket: "my-backup-bucket"
       endpoint: "s3.amazonaws.com"
       region: "us-east-1"
       secretName: "s3-credentials"
   retentionPolicy:
     keepLast: 5
-    expireAfter: "720h" # 30 days
