@@ -9,7 +9,7 @@ spec:
       clientConfig:
         service:
           name: webhook-service
-          namespace: system
+          namespace: postgres-operator-system
           path: /convert
       conversionReviewVersions:
       - v1
