@@ -14,9 +14,10 @@ resources:
 namespace: postgres-operator-system
 
 # Common labels
-commonLabels:
-  app.kubernetes.io/name: postgres-operator
-  app.kubernetes.io/component: rbac
+labels:
+- pairs:
+    app.kubernetes.io/name: postgres-operator
+    app.kubernetes.io/component: rbac
 
 # Name prefix for generated resources
 namePrefix: postgres-operator-
