@@ -3,7 +3,7 @@ resources:
 - bases/database.example.com_postgresclusters.yaml
 - bases/database.example.com_postgresusers.yaml
 - bases/database.example.com_postgresbackups.yaml
-- bases/database.example.com_postgresrestore.yaml
+- bases/database.example.com_postgresrestores.yaml
 
 # Apply patches to CRDs
 patches:
@@ -22,6 +22,6 @@ patches:
 
 # Set common labels
 labels:
- - pairs:
+- pairs:
     app.kubernetes.io/name: postgres-operator
     app.kubernetes.io/version: v1.5.0
