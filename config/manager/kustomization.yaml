@@ -3,10 +3,15 @@ resources:
 - service_account.yaml
 
 # Set namespace for all resources
-namespace: system
+namespace: postgres-operator-system
 
 # Configure image overrides
 images:
 - name: controller
+  newName: localhost:5000/postgres-operator
+  newTag: latest
+- name: postgres-operator
   newName: your-registry/postgres-operator
   newTag: v1.5.0
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
