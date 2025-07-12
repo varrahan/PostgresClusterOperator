@@ -1,9 +1,10 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: postgresclusters.database.example.com
   annotations:
-    controller-gen.kubebuilder.io/version: v0.9.2
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: postgresclusters.database.example.com
 spec:
   group: database.example.com
   names:
@@ -11,268 +12,255 @@ spec:
     listKind: PostgresClusterList
     plural: postgresclusters
     singular: postgrescluster
-    shortNames: ["pgc", "pgcluster"]
   scope: Namespaced
   versions:
-  - name: v1
-    served: true
-    storage: true
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.readyReplicas
+      name: Ready
+      type: string
+    - jsonPath: .status.currentPrimary
+      name: Primary
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
-        type: object
         description: PostgresCluster is the Schema for the postgresclusters API
         properties:
           apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           metadata:
             type: object
           spec:
-            type: object
             description: PostgresClusterSpec defines the desired state of PostgresCluster
             properties:
-              replicas:
-                type: integer
-                format: int32
-                description: Replicas is the number of PostgreSQL instances in the cluster
-                minimum: 1
-                maximum: 100
-                default: 1
-              postgresVersion:
-                type: string
-                description: PostgresVersion specifies the PostgreSQL version to use
-                enum: ["11", "12", "13", "14", "15", "16"]
-                default: "15"
-              database:
-                type: object
-                description: Database configuration
-                properties:
-                  name:
-                    type: string
-                    description: Name of the default database
-                    pattern: '^[a-zA-Z_][a-zA-Z0-9_]*$'
-                    default: "postgres"
-                  initScript:
-                    type: string
-                    description: InitScript for database initialization
-                  parameters:
-                    type: object
-                    description: Parameters for PostgreSQL configuration
-                    additionalProperties:
-                      type: string
-                    example:
-                      max_connections: "100"
-                      shared_buffers: "128MB"
-              storage:
-                type: object
-                description: Storage configuration
-                properties:
-                  volumeName:
-                    type: string
-                    description: VolumeName specifies the name of the PersistentVolumeClaim
-                  size:
-                    type: string
-                    description: Size of the storage volume
-                    pattern: '^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$'
-                    default: "10Gi"
-                  storageClass:
-                    type: string
-                    description: StorageClass to use for the volume
-                  accessModes:
-                    type: array
-                    description: AccessModes for the volume
-                    items:
-                      type: string
-                      enum: ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
-                    default: ["ReadWriteOnce"]
-              resources:
-                type: object
-                description: ResourceRequirements defines the resources required to run a cluster
-                properties:
-                  cpu:
-                    type: string
-                    description: CPU resource requirements
-                    pattern: '^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$'
-                    default: "500m"
-                  memory:
-                    type: string
-                    description: Memory resource requirements
-                    pattern: '^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$'
-                    default: "1Gi"
-                  storage:
-                    type: string
-                    description: Storage resource requirements
-                    pattern: '^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$'
-              highAvailability:
-                type: object
-                description: HighAvailability configuration
-                properties:
-                  enabled:
-                    type: boolean
-                    description: Enabled indicates if HA is enabled
-                    default: false
-                  synchronousReplication:
-                    type: boolean
-                    description: SynchronousReplication enables synchronous replication
-                    default: false
-                  failoverTimeout:
-                    type: integer
-                    format: int32
-                    description: FailoverTimeout in seconds
-                    minimum: 10
-                    maximum: 3600
-                    default: 30
               backup:
-                type: object
                 description: Backup configuration
                 properties:
                   enabled:
-                    type: boolean
                     description: Enabled indicates if backup is enabled
-                    default: false
-                  schedule:
-                    type: string
-                    description: Schedule for automatic backups (cron format)
-                    pattern: '^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})$'
-                    example: "0 2 * * *"
+                    type: boolean
                   retentionPolicy:
-                    type: string
                     description: RetentionPolicy for backups
-                    pattern: '^(\d+[dwmy])+$'
-                    example: "30d"
+                    type: string
+                  schedule:
+                    description: Schedule for automatic backups (cron format)
+                    type: string
                   storage:
-                    type: object
                     description: Storage configuration for backups
                     properties:
-                      type:
-                        type: string
-                        description: Type of backup storage (s3, gcs, azure, local)
-                        enum: ["s3", "gcs", "azure", "local"]
-                        default: "local"
                       config:
-                        type: object
-                        description: Configuration for the backup storage
                         additionalProperties:
                           type: string
-                        example:
-                          bucket: "my-backup-bucket"
-                          region: "us-west-2"
-              monitoring:
+                        description: Configuration for the backup storage
+                        type: object
+                      type:
+                        description: Type of backup storage (s3, gcs, azure, local)
+                        type: string
+                    required:
+                    - config
+                    - type
+                    type: object
+                required:
+                - storage
                 type: object
+              database:
+                description: Database configuration
+                properties:
+                  initScript:
+                    description: InitScript for database initialization
+                    type: string
+                  name:
+                    description: Name of the default database
+                    type: string
+                  parameters:
+                    additionalProperties:
+                      type: string
+                    description: Parameters for PostgreSQL configuration
+                    type: object
+                type: object
+              highAvailability:
+                description: HighAvailability configuration
+                properties:
+                  enabled:
+                    description: Enabled indicates if HA is enabled
+                    type: boolean
+                  failoverTimeout:
+                    description: FailoverTimeout in seconds
+                    format: int32
+                    type: integer
+                  synchronousReplication:
+                    description: SynchronousReplication enables synchronous replication
+                    type: boolean
+                type: object
+              monitoring:
                 description: Monitoring configuration
                 properties:
                   enabled:
-                    type: boolean
                     description: Enabled indicates if monitoring is enabled
-                    default: false
+                    type: boolean
                   prometheus:
-                    type: object
                     description: Prometheus scraping configuration
                     properties:
                       enabled:
+                        description: Enabled indicates if Prometheus monitoring is
+                          enabled
                         type: boolean
-                        description: Enabled indicates if Prometheus monitoring is enabled
-                        default: false
-                      port:
-                        type: integer
-                        format: int32
-                        description: Port for metrics endpoint
-                        minimum: 1024
-                        maximum: 65535
-                        default: 9187
                       path:
-                        type: string
                         description: Path for metrics endpoint
-                        pattern: '^/[a-zA-Z0-9/_-]*$'
-                        default: "/metrics"
-          status:
+                        type: string
+                      port:
+                        description: Port for metrics endpoint
+                        format: int32
+                        type: integer
+                    type: object
+                type: object
+              postgresVersion:
+                description: PostgresVersion specifies the PostgreSQL version to use
+                type: string
+              replicas:
+                description: Replicas is the number of PostgreSQL instances in the
+                  cluster
+                format: int32
+                type: integer
+              resources:
+                description: Resources specifies the resource requirements
+                properties:
+                  cpu:
+                    description: CPU resource requirements
+                    type: string
+                  memory:
+                    description: Memory resource requirements
+                    type: string
+                  storage:
+                    description: Storage resource requirements
+                    type: string
+                type: object
+              storage:
+                description: Storage configuration
+                properties:
+                  accessModes:
+                    description: AccessModes for the volume
+                    items:
+                      type: string
+                    type: array
+                  size:
+                    description: Size of the storage volume
+                    type: string
+                  storageClass:
+                    description: StorageClass to use for the volume
+                    type: string
+                  volumeName:
+                    description: VolumeName specifies the name of the PersistentVolumeClaim
+                    type: string
+                type: object
             type: object
+          status:
             description: PostgresClusterStatus defines the observed state of PostgresCluster
             properties:
-              phase:
-                type: string
-                description: Phase represents the current phase of the cluster
-                enum: ["Pending", "Creating", "Running", "Upgrading", "Failed", "Terminating"]
-              message:
-                type: string
-                description: Message provides additional information about the current state
-              readyReplicas:
-                type: integer
-                format: int32
-                description: ReadyReplicas is the number of ready PostgreSQL instances
-                minimum: 0
-              currentPrimary:
-                type: string
-                description: CurrentPrimary indicates which instance is the current primary
               conditions:
-                type: array
                 description: Conditions represent the latest available observations
                 items:
-                  type: object
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
-                    type:
-                      type: string
-                      description: Type of condition
-                    status:
-                      type: string
-                      description: Status of the condition
-                      enum: ["True", "False", "Unknown"]
                     lastTransitionTime:
-                      type: string
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
                       format: date-time
-                      description: Last time the condition transitioned from one status to another
-                    reason:
                       type: string
-                      description: Unique, one-word, CamelCase reason for the condition's last transition
                     message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
                       type: string
-                      description: Human-readable message indicating details about last transition
                     observedGeneration:
-                      type: integer
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
                       format: int64
-                      description: ObservedGeneration represents the .metadata.generation that the condition was set based upon
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
                   required:
-                  - type
-                  - status
                   - lastTransitionTime
-              lastBackup:
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              currentPrimary:
+                description: CurrentPrimary indicates which instance is the current
+                  primary
                 type: string
-                format: date-time
-                description: LastBackup timestamp
               databaseVersion:
-                type: string
                 description: DatabaseVersion is the actual PostgreSQL version running
+                type: string
+              lastBackup:
+                description: LastBackup timestamp
+                format: date-time
+                type: string
+              message:
+                description: Message provides additional information about the current
+                  state
+                type: string
+              phase:
+                description: Phase represents the current phase of the cluster
+                type: string
+              readyReplicas:
+                description: ReadyReplicas is the number of ready PostgreSQL instances
+                format: int32
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
     subresources:
-      status: {}
       scale:
         specReplicasPath: .spec.replicas
         statusReplicasPath: .status.readyReplicas
-        labelSelectorPath: .status.selector
-    additionalPrinterColumns:
-    - name: Phase
-      type: string
-      description: Current phase of the cluster
-      jsonPath: .status.phase
-    - name: Ready
-      type: string
-      description: Number of ready replicas
-      jsonPath: .status.readyReplicas
-    - name: Replicas
-      type: integer
-      description: Desired number of replicas
-      jsonPath: .spec.replicas
-    - name: Version
-      type: string
-      description: PostgreSQL version
-      jsonPath: .spec.postgresVersion
-    - name: Primary
-      type: string
-      description: Current primary instance
-      jsonPath: .status.currentPrimary
-    - name: Age
-      type: date
-      description: Age of the cluster
-      jsonPath: .metadata.creationTimestamp
+      status: {}
