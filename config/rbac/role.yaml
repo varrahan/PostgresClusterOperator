@@ -63,7 +63,7 @@ rules:
   resources:
   - postgresbackups
   - postgresclusters
-  - postgresrestores
+  - postgresrestore
   - postgresusers
   verbs:
   - create
@@ -78,7 +78,7 @@ rules:
   resources:
   - postgresbackups/finalizers
   - postgresclusters/finalizers
-  - postgresrestores/finalizers
+  - postgresrestore/finalizers
   - postgresusers/finalizers
   verbs:
   - update
@@ -87,9 +87,10 @@ rules:
   resources:
   - postgresbackups/status
   - postgresclusters/status
-  - postgresrestores/status
+  - postgresrestore/status
   - postgresusers/status
   verbs:
   - get
   - patch
   - update
+

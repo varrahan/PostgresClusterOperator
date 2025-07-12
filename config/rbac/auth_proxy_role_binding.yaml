@@ -1,12 +1,12 @@
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: metrics-reader
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
+  kind: ClusterRole
   name: metrics-reader
 subjects:
 - kind: ServiceAccount
-  name: controller-manager
-  namespace: system
+  name: postgres-operator-manager
+  namespace: postgres-operator-system
