@@ -18,48 +18,74 @@ type Client struct {
 	db *sql.DB
 }
 
-// NewClient creates a new PostgreSQL client
-func NewClient(ctx context.Context, k8sClient client.Client, cluster *databasev1.PostgresCluster) (*Client, error) {
-	// Get credentials from secret
-	secret := &corev1.Secret{}
-	err := k8sClient.Get(ctx, types.NamespacedName{
-		Name:      cluster.Name + "-credentials",
-		Namespace: cluster.Namespace,
-	}, secret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get credentials secret: %w", err)
-	}
+// NewClientForInstance creates a PostgreSQL client connected to a specific instance
+func NewClientForInstance(
+    ctx context.Context,
+    k8sClient client.Client,
+    cluster *databasev1.PostgresCluster,
+    instanceName string,
+) (*Client, error) {
+    // Get credentials from secret (same as NewClient)
+    secret := &corev1.Secret{}
+    err := k8sClient.Get(ctx, types.NamespacedName{
+        Name:      cluster.Name + "-credentials",
+        Namespace: cluster.Namespace,
+    }, secret)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get credentials secret: %w", err)
+    }
 
-	password, exists := secret.Data["postgres-password"]
-	if !exists {
-		return nil, fmt.Errorf("postgres-password not found in secret")
-	}
+    password, exists := secret.Data["postgres-password"]
+    if !exists {
+        return nil, fmt.Errorf("postgres-password not found in secret")
+    }
 
-	// Build connection string
-	host := fmt.Sprintf("%s-service.%s.svc.cluster.local", cluster.Name, cluster.Namespace)
-	connStr := fmt.Sprintf("host=%s port=5432 user=postgres password=%s dbname=%s sslmode=require connect_timeout=10",
-		host, string(password), cluster.Spec.Database.Name)
+    // Build connection string for specific instance
+    host := fmt.Sprintf("%s-%s.%s.svc.cluster.local", cluster.Name, instanceName, cluster.Namespace)
+    connStr := fmt.Sprintf("host=%s port=5432 user=postgres password=%s dbname=%s sslmode=require connect_timeout=10",
+        host, string(password), cluster.Spec.Database.Name)
 
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
-	}
+    db, err := sql.Open("postgres", connStr)
+    if err != nil {
+        return nil, fmt.Errorf("failed to open database connection to instance %s: %w", instanceName, err)
+    }
 
-	// Configure connection pool
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(time.Hour)
+    // Configure connection pool with more conservative settings for instance connections
+    db.SetMaxOpenConns(5)
+    db.SetMaxIdleConns(2)
+    db.SetConnMaxLifetime(30 * time.Minute)
 
-	// Test connection
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
+    // Test connection with shorter timeout
+    ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+    defer cancel()
 
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to ping database: %w", err)
-	}
+    if err := db.PingContext(ctx); err != nil {
+        db.Close()
+        return nil, fmt.Errorf("failed to ping instance %s: %w", instanceName, err)
+    }
 
-	return &Client{db: db}, nil
+    return &Client{db: db}, nil
+}
+
+// SetConnectionLimit sets the maximum number of concurrent connections for a PostgreSQL user
+func (c *Client) SetConnectionLimit(ctx context.Context, username string, limit int32) error {
+    // Validate input
+    if username == "" {
+        return fmt.Errorf("username cannot be empty")
+    }
+    
+    if limit < -1 {
+        return fmt.Errorf("invalid connection limit: %d (must be -1 for no limit or >= 0)", limit)
+    }
+
+    // Prepare and execute the query
+    query := fmt.Sprintf("ALTER USER %s WITH CONNECTION LIMIT %d", pq.QuoteIdentifier(username), limit)
+    _, err := c.db.ExecContext(ctx, query)
+    if err != nil {
+        return fmt.Errorf("failed to set connection limit for user %s: %w", username, err)
+    }
+
+    return nil
 }
 
 // Close closes the database connection
