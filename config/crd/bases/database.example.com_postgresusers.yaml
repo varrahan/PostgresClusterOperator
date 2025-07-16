@@ -32,7 +32,6 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: PostgresUser is the Schema for the postgresusers API
         properties:
           apiVersion:
             description: |-
@@ -55,35 +54,83 @@ spec:
             description: PostgresUserSpec defines the desired state of PostgresUser
             properties:
               clusterRef:
-                description: ClusterRef references the PostgresCluster this user belongs
-                  to
+                description: Reference to associated cluster
                 properties:
                   name:
-                    description: Name of the PostgresCluster
                     minLength: 1
                     type: string
                   namespace:
-                    description: Namespace of the PostgresCluster (defaults to same
-                      namespace as PostgresUser)
                     type: string
                 required:
                 - name
                 type: object
               connectionLimit:
                 default: -1
-                description: 'ConnectionLimit specifies maximum concurrent connections
-                  (default: no limit)'
                 format: int32
                 minimum: -1
                 type: integer
-              databases:
-                description: Databases this user should have access to
-                items:
-                  type: string
-                maxItems: 100
-                type: array
+              instanceSelector:
+                description: Selector for which instances are being restored. Selected
+                  by name
+                properties:
+                  labelSelector:
+                    description: |-
+                      A label selector is a label query over a set of resources. The result of matchLabels and
+                      matchExpressions are ANDed. An empty label selector matches all objects. A null
+                      label selector matches no objects.
+                    properties:
+                      matchExpressions:
+                        description: matchExpressions is a list of label selector
+                          requirements. The requirements are ANDed.
+                        items:
+                          description: |-
+                            A label selector requirement is a selector that contains values, a key, and an operator that
+                            relates the key and values.
+                          properties:
+                            key:
+                              description: key is the label key that the selector
+                                applies to.
+                              type: string
+                            operator:
+                              description: |-
+                                operator represents a key's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists and DoesNotExist.
+                              type: string
+                            values:
+                              description: |-
+                                values is an array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty. This array is replaced during a strategic
+                                merge patch.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          required:
+                          - key
+                          - operator
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: atomic
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                          map is equivalent to an element of matchExpressions, whose key field is "key", the
+                          operator is "In", and the values array contains only "value". The requirements are ANDed.
+                        type: object
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  names:
+                    items:
+                      type: string
+                    type: array
+                  role:
+                    type: string
+                type: object
               password:
-                description: Password configuration for the user
+                description: Specifications to handle passwords
                 properties:
                   generate:
                     default: false
@@ -91,21 +138,30 @@ spec:
                     type: boolean
                   length:
                     default: 16
-                    description: 'Length of the generated password (default: 16)'
                     format: int32
                     maximum: 128
                     minimum: 8
                     type: integer
+                  rotationPolicy:
+                    description: How long a password should be rotated for
+                    properties:
+                      enabled:
+                        default: false
+                        type: boolean
+                      interval:
+                        description: time in hours
+                        format: int32
+                        maximum: 2048
+                        minimum: 1
+                        type: integer
+                    type: object
                   secretRef:
-                    description: SecretRef references an existing secret containing
-                      the password
+                    description: Kubernetes secrets reference
                     properties:
                       key:
                         default: password
-                        description: 'Key within the secret (default: "password")'
                         type: string
                       name:
-                        description: Name of the secret
                         minLength: 1
                         type: string
                     required:
@@ -113,28 +169,24 @@ spec:
                     type: object
                 type: object
               privileges:
-                description: Privileges defines the roles/privileges granted to the
-                  user
                 items:
                   type: string
                 maxItems: 20
                 type: array
               username:
-                description: Username for the PostgreSQL user. Must be a valid PostgreSQL
-                  identifier.
                 maxLength: 63
                 minLength: 1
                 pattern: ^[a-zA-Z_][a-zA-Z0-9_]*$
                 type: string
             required:
             - clusterRef
+            - password
             - username
             type: object
           status:
-            description: PostgresUserStatus defines the observed state of PostgresUser
+            description: Status of user
             properties:
               conditions:
-                description: Conditions represent the latest available observations
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -191,22 +243,33 @@ spec:
                   type: object
                 type: array
               databasesGranted:
-                description: DatabasesGranted lists the databases the user has access
-                  to
                 items:
                   type: string
                 type: array
+              instanceStatuses:
+                items:
+                  description: Status of user per instance
+                  properties:
+                    lastUpdated:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    ready:
+                      type: boolean
+                  required:
+                  - name
+                  - ready
+                  type: object
+                type: array
               lastPasswordChange:
-                description: LastPasswordChange timestamp
                 format: date-time
                 type: string
               message:
-                description: Message provides additional information about the current
-                  state
                 type: string
               phase:
-                description: Phase represents the current phase of the user (Pending,
-                  Ready, Failed)
                 enum:
                 - Pending
                 - Ready

@@ -36,7 +36,7 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: PostgresBackup is the Schema for the postgresbackups API
+        description: Standard backup schema
         properties:
           apiVersion:
             description: |-
@@ -56,47 +56,102 @@ spec:
           metadata:
             type: object
           spec:
-            description: PostgresBackupSpec defines the desired state of PostgresBackup
+            description: Specifications for the backup
             properties:
               clusterRef:
-                description: ClusterRef references the PostgresCluster to backup
+                description: Reference to associated cluster
                 properties:
                   name:
-                    description: Name of the PostgresCluster
                     minLength: 1
                     type: string
                   namespace:
-                    description: Namespace of the PostgresCluster (defaults to same
-                      namespace as PostgresUser)
                     type: string
                 required:
                 - name
                 type: object
+              includeInstanceConfig:
+                description: If true, backs up all instance-specific configs
+                type: boolean
+              instance:
+                description: Selector for which instances are being restored. Selected
+                  by name
+                properties:
+                  labelSelector:
+                    description: |-
+                      A label selector is a label query over a set of resources. The result of matchLabels and
+                      matchExpressions are ANDed. An empty label selector matches all objects. A null
+                      label selector matches no objects.
+                    properties:
+                      matchExpressions:
+                        description: matchExpressions is a list of label selector
+                          requirements. The requirements are ANDed.
+                        items:
+                          description: |-
+                            A label selector requirement is a selector that contains values, a key, and an operator that
+                            relates the key and values.
+                          properties:
+                            key:
+                              description: key is the label key that the selector
+                                applies to.
+                              type: string
+                            operator:
+                              description: |-
+                                operator represents a key's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists and DoesNotExist.
+                              type: string
+                            values:
+                              description: |-
+                                values is an array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty. This array is replaced during a strategic
+                                merge patch.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          required:
+                          - key
+                          - operator
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: atomic
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                          map is equivalent to an element of matchExpressions, whose key field is "key", the
+                          operator is "In", and the values array contains only "value". The requirements are ANDed.
+                        type: object
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  names:
+                    items:
+                      type: string
+                    type: array
+                  role:
+                    type: string
+                type: object
               options:
-                description: Options for the backup
+                description: Options for backup
                 properties:
                   compression:
-                    description: Compression type (gzip, lz4, none)
-                    enum:
-                    - gzip
-                    - lz4
-                    - none
-                    type: string
+                    format: int32
+                    maximum: 9
+                    minimum: 0
+                    type: integer
                   encryption:
-                    description: Encryption configuration
+                    description: Used to see if we will encrypt with backup
                     properties:
                       enabled:
-                        description: Enabled indicates if encryption is enabled
                         type: boolean
                       secretRef:
-                        description: SecretRef references the encryption key
+                        description: Kubernetes secrets reference
                         properties:
                           key:
                             default: password
-                            description: 'Key within the secret (default: "password")'
                             type: string
                           name:
-                            description: Name of the secret
                             minLength: 1
                             type: string
                         required:
@@ -104,46 +159,34 @@ spec:
                         type: object
                     type: object
                   parallelJobs:
-                    description: Parallel jobs for backup
                     format: int32
                     type: integer
                   timeout:
-                    description: Timeout for backup operation
                     type: string
                 type: object
               retentionPolicy:
-                description: Retention policy for this backup
+                description: Defines how many backups we keep and how often
                 properties:
                   deleteOnClusterDeletion:
-                    description: DeleteOnClusterDeletion determines if backup should
-                      be deleted when cluster is deleted
                     type: boolean
                   keepDaily:
-                    description: KeepDaily specifies how many daily backups to keep
                     format: int32
                     type: integer
                   keepLast:
-                    description: KeepLast specifies how many most recent backups to
-                      keep
                     format: int32
                     type: integer
                   keepMonthly:
-                    description: KeepMonthly specifies how many monthly backups to
-                      keep
                     format: int32
                     type: integer
                   keepWeekly:
-                    description: KeepWeekly specifies how many weekly backups to keep
                     format: int32
                     type: integer
                 type: object
               storage:
-                description: Storage configuration for this backup
                 properties:
                   config:
                     additionalProperties:
                       type: string
-                    description: Configuration for the backup storage
                     type: object
                   type:
                     description: Type of backup storage (s3, gcs, azure, local)
@@ -153,20 +196,17 @@ spec:
                 - type
                 type: object
               type:
-                description: Type of backup (full, incremental, wal)
                 type: string
             required:
             - clusterRef
             type: object
           status:
-            description: PostgresBackupStatus defines the observed state of PostgresBackup
+            description: Defines the status of our backup in a given period
             properties:
               completionTime:
-                description: CompletionTime of the backup
                 format: date-time
                 type: string
               conditions:
-                description: Conditions represent the latest available observations
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -222,36 +262,47 @@ spec:
                   - type
                   type: object
                 type: array
-              databaseVersion:
-                description: DatabaseVersion at the time of backup
-                type: string
+              database:
+                properties:
+                  config:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  exists:
+                    type: boolean
+                  name:
+                    type: string
+                  source:
+                    description: source is "cluster" or "instance"
+                    type: string
+                required:
+                - exists
+                - name
+                - source
+                type: object
               jobName:
-                description: JobName of the backup job
                 type: string
               location:
-                description: Location where the backup is stored
                 type: string
               message:
-                description: Message provides additional information about the current
-                  state
                 type: string
               phase:
-                description: Phase represents the current phase of the backup
                 type: string
               size:
-                description: Size of the backup in bytes
                 format: int64
                 type: integer
               startTime:
-                description: StartTime of the backup
                 format: date-time
                 type: string
+              targetInstance:
+                type: string
               walEnd:
-                description: WALEnd position
                 type: string
               walStart:
-                description: WALStart position
                 type: string
+            required:
+            - database
+            - targetInstance
             type: object
         type: object
     served: true

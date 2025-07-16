@@ -27,7 +27,6 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: PostgresRestore is the Schema for the postgresrestore API
         properties:
           apiVersion:
             description: |-
@@ -47,46 +46,113 @@ spec:
           metadata:
             type: object
           spec:
-            description: PostgresRestoreSpec defines the desired state of PostgresRestore
+            description: Specifcations for restoring
             properties:
               backupRef:
-                description: BackupRef references the backup to restore from
+                description: BackupReference references a PostgresBackup resource
                 properties:
                   name:
-                    description: Name of the backup
                     type: string
                   namespace:
-                    description: Namespace of the backup
                     type: string
                 required:
                 - name
                 type: object
+              instances:
+                description: Selector for which instances are being restored. Selected
+                  by name
+                properties:
+                  labelSelector:
+                    description: |-
+                      A label selector is a label query over a set of resources. The result of matchLabels and
+                      matchExpressions are ANDed. An empty label selector matches all objects. A null
+                      label selector matches no objects.
+                    properties:
+                      matchExpressions:
+                        description: matchExpressions is a list of label selector
+                          requirements. The requirements are ANDed.
+                        items:
+                          description: |-
+                            A label selector requirement is a selector that contains values, a key, and an operator that
+                            relates the key and values.
+                          properties:
+                            key:
+                              description: key is the label key that the selector
+                                applies to.
+                              type: string
+                            operator:
+                              description: |-
+                                operator represents a key's relationship to a set of values.
+                                Valid operators are In, NotIn, Exists and DoesNotExist.
+                              type: string
+                            values:
+                              description: |-
+                                values is an array of string values. If the operator is In or NotIn,
+                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                the values array must be empty. This array is replaced during a strategic
+                                merge patch.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          required:
+                          - key
+                          - operator
+                          type: object
+                        type: array
+                        x-kubernetes-list-type: atomic
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                          map is equivalent to an element of matchExpressions, whose key field is "key", the
+                          operator is "In", and the values array contains only "value". The requirements are ANDed.
+                        type: object
+                    type: object
+                    x-kubernetes-map-type: atomic
+                  names:
+                    items:
+                      type: string
+                    type: array
+                  role:
+                    type: string
+                type: object
               options:
-                description: Options for the restore operation
+                description: Options when restoring from backup
                 properties:
                   dataOnly:
-                    description: DataOnly restores only data, not schema
                     type: boolean
+                  databaseFilter:
+                    properties:
+                      exclude:
+                        items:
+                          type: string
+                        type: array
+                      include:
+                        items:
+                          type: string
+                        type: array
+                    type: object
                   dropExisting:
-                    description: DropExisting drops existing databases before restore
                     type: boolean
+                  parallelRestores:
+                    default: 1
+                    format: int32
+                    minimum: 1
+                    type: integer
                   schemaOnly:
-                    description: SchemaOnly restores only schema, not data
                     type: boolean
                   timeout:
-                    description: Timeout for the restore operation
                     type: string
                 type: object
               targetCluster:
-                description: TargetCluster references the cluster to restore to
+                description: Reference to associated cluster
                 properties:
                   name:
-                    description: Name of the PostgresCluster
                     minLength: 1
                     type: string
                   namespace:
-                    description: Namespace of the PostgresCluster (defaults to same
-                      namespace as PostgresUser)
                     type: string
                 required:
                 - name
@@ -96,13 +162,12 @@ spec:
             - targetCluster
             type: object
           status:
+            description: Restoration status
             properties:
               completionTime:
-                description: CompletionTime when the restore completed
                 format: date-time
                 type: string
               conditions:
-                description: Conditions represent the latest available observations
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -158,19 +223,40 @@ spec:
                   - type
                   type: object
                 type: array
+              instanceStatuses:
+                items:
+                  description: Instance-specific status tracking
+                  properties:
+                    completionTime:
+                      format: date-time
+                      type: string
+                    jobName:
+                      type: string
+                    message:
+                      type: string
+                    name:
+                      type: string
+                    phase:
+                      type: string
+                    startTime:
+                      format: date-time
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               jobName:
-                description: JobName is the name of the restore job
                 type: string
               message:
-                description: Message provides additional information about the current
-                  state
                 type: string
               phase:
-                description: Phase represents the current phase of the restore
                 type: string
               startTime:
-                description: StartTime when the restore started
                 format: date-time
+                type: string
+              walEnd:
+                type: string
+              walStart:
                 type: string
             type: object
         type: object

@@ -30,7 +30,6 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: PostgresCluster is the Schema for the postgresclusters API
         properties:
           apiVersion:
             description: |-
@@ -50,27 +49,21 @@ spec:
           metadata:
             type: object
           spec:
-            description: PostgresClusterSpec defines the desired state of PostgresCluster
+            description: Specifications for the cluster manager
             properties:
               backup:
-                description: Backup configuration
                 properties:
                   enabled:
-                    description: Enabled indicates if backup is enabled
                     type: boolean
                   retentionPolicy:
-                    description: RetentionPolicy for backups
                     type: string
                   schedule:
-                    description: Schedule for automatic backups (cron format)
                     type: string
                   storage:
-                    description: Storage configuration for backups
                     properties:
                       config:
                         additionalProperties:
                           type: string
-                        description: Configuration for the backup storage
                         type: object
                       type:
                         description: Type of backup storage (s3, gcs, azure, local)
@@ -83,34 +76,141 @@ spec:
                 - storage
                 type: object
               database:
-                description: Database configuration
+                description: Basic database initialization specifications
                 properties:
-                  initScript:
-                    description: InitScript for database initialization
-                    type: string
-                  name:
-                    description: Name of the default database
-                    type: string
-                  parameters:
+                  access:
+                    items:
+                      properties:
+                        privileges:
+                          items:
+                            type: string
+                          type: array
+                        schemas:
+                          items:
+                            properties:
+                              name:
+                                minLength: 1
+                                type: string
+                              privileges:
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        username:
+                          minLength: 1
+                          type: string
+                      required:
+                      - username
+                      type: object
+                    type: array
+                  config:
                     additionalProperties:
                       type: string
-                    description: Parameters for PostgreSQL configuration
                     type: object
+                  initScript:
+                    type: string
+                  name:
+                    type: string
                 type: object
               highAvailability:
-                description: HighAvailability configuration
                 properties:
                   enabled:
-                    description: Enabled indicates if HA is enabled
                     type: boolean
                   failoverTimeout:
-                    description: FailoverTimeout in seconds
                     format: int32
                     type: integer
                   synchronousReplication:
-                    description: SynchronousReplication enables synchronous replication
                     type: boolean
                 type: object
+              instances:
+                items:
+                  description: Specifications for individual postgres instances
+                  properties:
+                    config:
+                      additionalProperties:
+                        type: string
+                      description: Instance-specific PostgreSQL config
+                      type: object
+                    database:
+                      description: Basic database initialization specifications
+                      properties:
+                        access:
+                          items:
+                            properties:
+                              privileges:
+                                items:
+                                  type: string
+                                type: array
+                              schemas:
+                                items:
+                                  properties:
+                                    name:
+                                      minLength: 1
+                                      type: string
+                                    privileges:
+                                      items:
+                                        type: string
+                                      type: array
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                              username:
+                                minLength: 1
+                                type: string
+                            required:
+                            - username
+                            type: object
+                          type: array
+                        config:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        initScript:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                    name:
+                      description: Required
+                      type: string
+                    replicas:
+                      description: Optional overrides
+                      format: int32
+                      type: integer
+                    resources:
+                      description: Resources to run an instance of the database
+                      properties:
+                        cpu:
+                          type: string
+                        memory:
+                          type: string
+                        storage:
+                          type: string
+                      type: object
+                    role:
+                      type: string
+                    storage:
+                      description: How the instance will be stored within the cluster
+                      properties:
+                        accessModes:
+                          items:
+                            type: string
+                          type: array
+                        size:
+                          type: string
+                        storageClass:
+                          type: string
+                        volumeName:
+                          type: string
+                      type: object
+                  required:
+                  - name
+                  type: object
+                type: array
               monitoring:
                 description: Monitoring configuration
                 properties:
@@ -134,50 +234,46 @@ spec:
                     type: object
                 type: object
               postgresVersion:
-                description: PostgresVersion specifies the PostgreSQL version to use
+                description: Global version selection
                 type: string
               replicas:
-                description: Replicas is the number of PostgreSQL instances in the
-                  cluster
+                description: Default criteria if instance not specified
                 format: int32
                 type: integer
               resources:
-                description: Resources specifies the resource requirements
+                description: Resources to run an instance of the database
                 properties:
                   cpu:
-                    description: CPU resource requirements
                     type: string
                   memory:
-                    description: Memory resource requirements
                     type: string
                   storage:
-                    description: Storage resource requirements
                     type: string
                 type: object
+              role:
+                type: string
               storage:
-                description: Storage configuration
+                description: How the instance will be stored within the cluster
                 properties:
                   accessModes:
-                    description: AccessModes for the volume
                     items:
                       type: string
                     type: array
                   size:
-                    description: Size of the storage volume
                     type: string
                   storageClass:
-                    description: StorageClass to use for the volume
                     type: string
                   volumeName:
-                    description: VolumeName specifies the name of the PersistentVolumeClaim
                     type: string
                 type: object
+            required:
+            - backup
+            - postgresVersion
             type: object
           status:
-            description: PostgresClusterStatus defines the observed state of PostgresCluster
+            description: Defines cluster status
             properties:
               conditions:
-                description: Conditions represent the latest available observations
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -234,25 +330,39 @@ spec:
                   type: object
                 type: array
               currentPrimary:
-                description: CurrentPrimary indicates which instance is the current
-                  primary
                 type: string
               databaseVersion:
-                description: DatabaseVersion is the actual PostgreSQL version running
                 type: string
+              instances:
+                description: Instances list of instance statuses
+                items:
+                  properties:
+                    currentLeader:
+                      type: string
+                    labels:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    name:
+                      type: string
+                    readyReplicas:
+                      format: int32
+                      type: integer
+                    role:
+                      type: string
+                  required:
+                  - name
+                  - readyReplicas
+                  type: object
+                type: array
               lastBackup:
-                description: LastBackup timestamp
                 format: date-time
                 type: string
               message:
-                description: Message provides additional information about the current
-                  state
                 type: string
               phase:
-                description: Phase represents the current phase of the cluster
                 type: string
               readyReplicas:
-                description: ReadyReplicas is the number of ready PostgreSQL instances
                 format: int32
                 type: integer
             type: object
