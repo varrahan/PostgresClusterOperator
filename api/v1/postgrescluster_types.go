@@ -8,28 +8,21 @@ import (
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// PostgresClusterSpec defines the desired state of PostgresCluster
+// Specifications for the cluster manager
 type PostgresClusterSpec struct {
-	// Replicas is the number of PostgreSQL instances in the cluster
-	Replicas int32 `json:"replicas,omitempty"`
 
-	// PostgresVersion specifies the PostgreSQL version to use
-	PostgresVersion string `json:"postgresVersion,omitempty"`
-
-	// Database configuration
-	Database DatabaseSpec `json:"database,omitempty"`
-
-	// Storage configuration
-	Storage StorageSpec `json:"storage,omitempty"`
-
-	// Resources specifies the resource requirements
-	Resources ResourceRequirements `json:"resources,omitempty"`
-
-	// HighAvailability configuration
+	// Global version selection
+	PostgresVersion string `json:"postgresVersion"`
+	Instances []PostgresInstanceSpec `json:"instances,omitempty"`
 	HighAvailability HASpec `json:"highAvailability,omitempty"`
+	Backup BackupSpec `json:"backup"`
 
-	// Backup configuration
-	Backup BackupSpec `json:"backup,omitempty"`
+	// Default criteria if instance not specified
+	Replicas  int32                `json:"replicas,omitempty"`
+    Role      string                `json:"role,omitempty"`
+    Storage   StorageSpec          `json:"storage,omitempty"`
+    Resources ResourceRequirements	`json:"resources,omitempty"`
+	Database  DatabaseSpec			`json:"database,omitempty"`
 
 	// Monitoring configuration
 	Monitoring MonitoringSpec `json:"monitoring,omitempty"`
@@ -37,86 +30,77 @@ type PostgresClusterSpec struct {
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// DatabaseSpec defines database initialization
-type DatabaseSpec struct {
-	// Name of the default database
-	Name string `json:"name,omitempty"`
-
-	// InitScript for database initialization
-	InitScript string `json:"initScript,omitempty"`
-
-	// Parameters for PostgreSQL configuration
-	Parameters map[string]string `json:"parameters,omitempty"`
+// Specifications for individual postgres instances
+type PostgresInstanceSpec struct {
+    // Required
+    Name string `json:"name"`
+    
+    // Optional overrides
+    Replicas  *int32                `json:"replicas,omitempty"`
+    Role      string                `json:"role,omitempty"`
+    Storage   *StorageSpec          `json:"storage,omitempty"`
+    Resources *ResourceRequirements	`json:"resources,omitempty"`
+	Database  *DatabaseSpec			`json:"database,omitempty"`
+    
+    // Instance-specific PostgreSQL config
+    Config map[string]string      `json:"config,omitempty"`
 }
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// StorageSpec defines the storage used by databases within a cluster
+// Basic database initialization specifications
+type DatabaseSpec struct {
+	Name string `json:"name,omitempty"`
+	InitScript string `json:"initScript,omitempty"`
+	Config map[string]string `json:"config,omitempty"`
+    Access []DatabaseAccess `json:"access,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+type DatabaseAccess struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+    Username   string   `json:"username"`
+	// +optional
+    Privileges []string `json:"privileges"`
+	// +optional
+    Schemas    []SchemaAccess `json:"schemas,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+type SchemaAccess struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+    Name       string   `json:"name"`
+	// +optional
+    Privileges []string `json:"privileges,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+// How the instance will be stored within the cluster
 type StorageSpec struct {
-    // VolumeName specifies the name of the PersistentVolumeClaim
     VolumeName string `json:"volumeName,omitempty"`
-
-	// Size of the storage volume
 	Size string `json:"size,omitempty"`
-
-	// StorageClass to use for the volume
 	StorageClass string `json:"storageClass,omitempty"`
-
-	// AccessModes for the volume
 	AccessModes []string `json:"accessModes,omitempty"`
 }
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// ResourceRequirements defines the resources required to run a cluster
+// Resources to run an instance of the database
 type ResourceRequirements struct {
-	// CPU resource requirements
 	CPU string `json:"cpu,omitempty"`
-
-	// Memory resource requirements
 	Memory string `json:"memory,omitempty"`
-
-	// Storage resource requirements
 	Storage string `json:"storage,omitempty"`
 }
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
 type HASpec struct {
-	// Enabled indicates if HA is enabled
 	Enabled bool `json:"enabled,omitempty"`
-
-	// SynchronousReplication enables synchronous replication
 	SynchronousReplication bool `json:"synchronousReplication,omitempty"`
-
-	// FailoverTimeout in seconds
 	FailoverTimeout int32 `json:"failoverTimeout,omitempty"`
-}
-
-// +k8s:deepcopy-gen=true
-// +kubebuilder:object:generate=true
-type BackupSpec struct {
-	// Enabled indicates if backup is enabled
-	Enabled bool `json:"enabled,omitempty"`
-
-	// Schedule for automatic backups (cron format)
-	Schedule string `json:"schedule,omitempty"`
-
-	// RetentionPolicy for backups
-	RetentionPolicy string `json:"retentionPolicy,omitempty"`
-
-	// Storage configuration for backups
-	Storage BackupStorageSpec `json:"storage"`
-}
-
-// +k8s:deepcopy-gen=true
-// +kubebuilder:object:generate=true
-type BackupStorageSpec struct {
-	// Type of backup storage (s3, gcs, azure, local)
-	Type string `json:"type"`
-
-	// Configuration for the backup storage
-	Config map[string]string `json:"config"`
 }
 
 // +k8s:deepcopy-gen=true
@@ -144,29 +128,30 @@ type PrometheusSpec struct {
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// PostgresClusterStatus defines the observed state of PostgresCluster
+// Defines cluster status
 type PostgresClusterStatus struct {
-	// Phase represents the current phase of the cluster
 	Phase string `json:"phase,omitempty"`
-
-	// Message provides additional information about the current state
 	Message string `json:"message,omitempty"`
-
-	// ReadyReplicas is the number of ready PostgreSQL instances
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
-
-	// CurrentPrimary indicates which instance is the current primary
 	CurrentPrimary string `json:"currentPrimary,omitempty"`
-
-	// Conditions represent the latest available observations
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
-	// LastBackup timestamp
 	LastBackup *metav1.Time `json:"lastBackup,omitempty"`
-
-	// DatabaseVersion is the actual PostgreSQL version running
 	DatabaseVersion string `json:"databaseVersion,omitempty"`
+
+	// Instances list of instance statuses
+	Instances []PostgresInstanceStatus `json:"instances,omitempty"`
 }
+
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+type PostgresInstanceStatus struct {
+    Name           string `json:"name"`
+    ReadyReplicas  int32  `json:"readyReplicas"`
+    Role           string `json:"role,omitempty"`
+    CurrentLeader  string `json:"currentLeader,omitempty"`
+	Labels		   map[string]string `json:"labels,omitempty"`
+}
+
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
@@ -175,8 +160,6 @@ type PostgresClusterStatus struct {
 //+kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.readyReplicas`
 //+kubebuilder:printcolumn:name="Primary",type=string,JSONPath=`.status.currentPrimary`
 //+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
-
-// PostgresCluster is the Schema for the postgresclusters API
 type PostgresCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -186,8 +169,6 @@ type PostgresCluster struct {
 }
 
 //+kubebuilder:object:root=true
-
-// PostgresClusterList contains a list of PostgresCluster
 type PostgresClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
