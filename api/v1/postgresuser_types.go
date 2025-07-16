@@ -10,83 +10,60 @@ import (
 // +kubebuilder:object:generate=true
 // PostgresUserSpec defines the desired state of PostgresUser
 type PostgresUserSpec struct {
-	// ClusterRef references the PostgresCluster this user belongs to
 	// +kubebuilder:validation:Required
-	ClusterRef ClusterReference `json:"clusterRef"`
-
-	// Username for the PostgreSQL user. Must be a valid PostgreSQL identifier.
+	ClusterRef *ClusterReference `json:"clusterRef"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z_][a-zA-Z0-9_]*$`
 	Username string `json:"username"`
-
-	// Password configuration for the user
-	// +optional
-	Password PasswordSpec `json:"password"`
-
-	// Privileges defines the roles/privileges granted to the user
+	Password *PasswordSpec `json:"password"`
 	// +kubebuilder:validation:MaxItems=20
 	// +optional
 	Privileges []string `json:"privileges,omitempty"`
-
-	// Databases this user should have access to
-	// +kubebuilder:validation:MaxItems=100
-	// +optional
-	Databases []string `json:"databases,omitempty"`
-
-	// ConnectionLimit specifies maximum concurrent connections (default: no limit)
 	// +kubebuilder:validation:Minimum=-1
 	// +kubebuilder:default=-1
-	// +optional
 	ConnectionLimit int32 `json:"connectionLimit,omitempty"`
+	InstanceSelector *InstanceSelector `json:"instanceSelector,omitempty"`
 }
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// ClusterReference identifies a PostgresCluster
+// Reference to associated cluster
 type ClusterReference struct {
-	// Name of the PostgresCluster
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
-
-	// Namespace of the PostgresCluster (defaults to same namespace as PostgresUser)
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 }
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// PasswordSpec defines how to handle user password
+// Specifications to handle passwords
 type PasswordSpec struct {
-	// SecretRef references an existing secret containing the password
-	// +optional
 	SecretRef *SecretReference `json:"secretRef,omitempty"`
-
 	// Generate indicates if a password should be auto-generated
 	// +kubebuilder:default=false
 	// +optional
 	Generate bool `json:"generate,omitempty"`
-
-	// Length of the generated password (default: 16)
 	// +kubebuilder:validation:Minimum=8
 	// +kubebuilder:validation:Maximum=128
 	// +kubebuilder:default=16
 	// +optional
 	Length int32 `json:"length,omitempty"`
+	// +optional
+	RotationPolicy *PasswordRotationPolicy `json:"rotationPolicy,omitempty"`
 }
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// SecretReference identifies a Kubernetes Secret
+// Kubernetes secrets reference
 type SecretReference struct {
-	// Name of the secret
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 
-	// Key within the secret (default: "password")
 	// +kubebuilder:default="password"
 	// +optional
 	Key string `json:"key,omitempty"`
@@ -94,28 +71,41 @@ type SecretReference struct {
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// PostgresUserStatus defines the observed state of PostgresUser
-type PostgresUserStatus struct {
-	// Phase represents the current phase of the user (Pending, Ready, Failed)
-	// +kubebuilder:validation:Enum=Pending;Ready;Failed
+// How long a password should be rotated for
+type PasswordRotationPolicy struct {
+	// +kubebuilder:default=false
 	// +optional
-	Phase string `json:"phase,omitempty"`
+	Enabled bool `json:"enabled,omitempty"`
+	// time in hours
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=2048
+	// +optional
+	Interval int32 `json:"interval,omitempty"`
+}
 
-	// Message provides additional information about the current state
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+// Status of user
+type PostgresUserStatus struct {
+	// +kubebuilder:validation:Enum=Pending;Ready;Failed
+	Phase string `json:"phase,omitempty"`
+	Message string `json:"message,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	LastPasswordChange *metav1.Time `json:"lastPasswordChange,omitempty"`
+	DatabasesGranted []string `json:"databasesGranted,omitempty"`
+	// +optional
+	InstanceStatuses []UserInstanceStatus `json:"instanceStatuses,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+// Status of user per instance
+type UserInstanceStatus struct {
+	Name string `json:"name"`
+	Ready bool `json:"ready"`
 	// +optional
 	Message string `json:"message,omitempty"`
-
-	// Conditions represent the latest available observations
-	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
-	// LastPasswordChange timestamp
-	// +optional
-	LastPasswordChange *metav1.Time `json:"lastPasswordChange,omitempty"`
-
-	// DatabasesGranted lists the databases the user has access to
-	// +optional
-	DatabasesGranted []string `json:"databasesGranted,omitempty"`
+	LastUpdated *metav1.Time `json:"lastUpdated,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -125,8 +115,6 @@ type PostgresUserStatus struct {
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:resource:shortName=pguser
-
-// PostgresUser is the Schema for the postgresusers API
 type PostgresUser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -136,8 +124,6 @@ type PostgresUser struct {
 }
 
 // +kubebuilder:object:root=true
-
-// PostgresUserList contains a list of PostgresUser
 type PostgresUserList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
