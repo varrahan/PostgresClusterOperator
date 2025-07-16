@@ -14,10 +14,13 @@ NAMESPACE ?= postgres-operator-system
 
 # Setup Go related variables
 GO ?= go
+GOBIN ?= $(shell go env GOPATH)/bin
 
 # Directories
-API_DIR := ./api/v1
+API_V1_DIR := ./api/v1
 CONFIG_DIR := ./config
+CRD_DIR := $(CONFIG_DIR)/crd
+CRD_BASE_DIR := $(CRD_DIR)/bases
 
 .PHONY: all
 all: build
@@ -32,36 +35,46 @@ build:
 test:
 	$(GO) test ./... -coverprofile cover.out
 
-## Generate deepcopy and other code
+## Generate deepcopy and other code in api/v1
 .PHONY: generate
 generate: controller-gen
-	$(CONTROLLER_GEN) object paths="$(API_DIR)/..."
+	$(CONTROLLER_GEN) \
+		object \
+		paths="$(API_V1_DIR)/..." \
+		output:object:dir=$(API_V1_DIR)
+	@echo "Code generation complete in $(API_V1_DIR)"
 
 ## Generate CRD manifests and RBAC
 .PHONY: manifests
 manifests: controller-gen
-	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./api/v1/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) \
+		crd \
+		rbac:roleName=manager-role \
+		webhook \
+		paths="$(API_V1_DIR)/..." \
+		output:crd:artifacts:config=$(CRD_BASE_DIR)
+	@echo "Manifests generated at $(CRD_BASE_DIR)"
 
 ## Install CRDs into the cluster
 .PHONY: install
 install: manifests kustomize
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build $(CRD_DIR) | kubectl apply -f -
 
 ## Uninstall CRDs from the cluster
 .PHONY: uninstall
 uninstall: manifests kustomize
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build $(CRD_BASE_DIR) | kubectl delete -f -
 
 ## Deploy controller to the cluster
 .PHONY: deploy
 deploy: manifests kustomize
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	cd $(CONFIG_DIR)/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build $(CONFIG_DIR)/default | kubectl apply -f -
 
 ## Undeploy controller from the cluster
 .PHONY: undeploy
 undeploy: kustomize
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build $(CONFIG_DIR)/default | kubectl delete -f -
 
 ## Run the operator locally (requires cluster connection)
 .PHONY: run
@@ -85,16 +98,17 @@ docker-build-push: docker-build docker-push
 ## Create sample PostgreSQL resources
 .PHONY: samples
 samples:
-	kubectl apply -f config/samples/
+	kubectl apply -f $(CONFIG_DIR)/samples/
 
 ## Remove sample PostgreSQL resources
 .PHONY: samples-clean
 samples-clean:
-	kubectl delete -f config/samples/ --ignore-not-found=true
+	kubectl delete -f $(CONFIG_DIR)/samples/ --ignore-not-found=true
 
 ## Setup development environment
 .PHONY: dev-setup
-dev-setup: controller-gen kustomize manifests generate
+dev-setup: controller-gen kustomize
+	$(MAKE) generate manifests
 
 ## Full deployment (build, push, deploy)
 .PHONY: deploy-full
@@ -104,21 +118,27 @@ deploy-full: docker-build-push deploy
 .PHONY: controller-gen
 controller-gen:
 	@{ \
-		if [ ! -x "$(CONTROLLER_GEN)" ]; then \
-			echo "Downloading controller-gen..."; \
-			GOBIN=$(shell pwd)/bin $(GO) install sigs.k8s.io/controller-tools/cmd/controller-gen@latest; \
-		fi \
+	if [ ! -f $(CONTROLLER_GEN) ]; then \
+		set -e ; \
+		CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ; \
+		cd $$CONTROLLER_GEN_TMP_DIR ; \
+		go mod init tmp ; \
+		GOBIN=$(shell pwd)/bin $(GO) install sigs.k8s.io/controller-tools/cmd/controller-gen@latest ; \
+		rm -rf $$CONTROLLER_GEN_TMP_DIR ; \
+	fi ; \
 	}
 
 ## Install kustomize locally if not present
 .PHONY: kustomize
 kustomize:
 	@{ \
-		if [ ! -x "$(KUSTOMIZE)" ]; then \
-			echo "Downloading kustomize..."; \
-			curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash; \
-			mv kustomize $(shell pwd)/bin/; \
-		fi \
+	if [ ! -f $(KUSTOMIZE) ]; then \
+		set -e ; \
+		KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ; \
+		cd $$KUSTOMIZE_GEN_TMP_DIR ; \
+		curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- 3.8.7 $(shell pwd)/bin ; \
+		rm -rf $$KUSTOMIZE_GEN_TMP_DIR ; \
+	fi ; \
 	}
 
 ## Check cluster connectivity and resources
@@ -141,7 +161,9 @@ logs:
 ## Clean up generated files and binaries
 .PHONY: clean
 clean:
-	rm -rf bin zz_generated.deepcopy.go cover.out
+	rm -rf bin
+	find $(API_DIR) -name zz_generated.deepcopy.go -delete
+	rm -f cover.out
 
 ## Full cleanup (clean + undeploy + uninstall)
 .PHONY: clean-all
@@ -153,7 +175,8 @@ lint:
 	@if command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run; \
 	else \
-		echo "golangci-lint not found, skipping lint"; \
+		echo "golangci-lint not found, install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+		exit 1; \
 	fi
 
 ## Format the code
@@ -170,6 +193,19 @@ vet:
 .PHONY: pre-commit
 pre-commit: fmt vet lint test
 
+## Generate all code and manifests
+.PHONY: generate-all
+generate-all: generate manifests
+
+## Verify code generation is up-to-date
+.PHONY: verify-generate
+verify-generate: generate-all
+	@if ! git diff --quiet; then \
+		echo "Generated files are out of date. Please run 'make generate-all' and commit the changes."; \
+		git diff; \
+		exit 1; \
+	fi
+
 ## Help: show commands
 .PHONY: help
 help:
@@ -183,6 +219,8 @@ help:
 	@echo ""
 	@echo "Development Commands:"
 	@echo "  make generate           Generate deepcopy and other code"
+	@echo "  make generate-all       Generate all code and manifests"
+	@echo "  make verify-generate    Verify generated code is up-to-date"
 	@echo "  make manifests          Generate CRD manifests and RBAC"
 	@echo "  make dev-setup          Setup development environment"
 	@echo "  make run                Run operator locally"
