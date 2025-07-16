@@ -8,64 +8,81 @@ import (
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// PostgresRestoreSpec defines the desired state of PostgresRestore
+// Specifcations for restoring
 type PostgresRestoreSpec struct {
-	// BackupRef references the backup to restore from
 	BackupRef BackupReference `json:"backupRef"`
-
-	// TargetCluster references the cluster to restore to
 	TargetCluster ClusterReference `json:"targetCluster"`
-
-	// Options for the restore operation
 	Options RestoreOptions `json:"options,omitempty"`
+	Instances *InstanceSelector `json:"instances,omitempty"`
 }
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-// RestoreOptions defines options for the restore operation
+// Options when restoring from backup
 type RestoreOptions struct {
-	// DropExisting drops existing databases before restore
 	DropExisting bool `json:"dropExisting,omitempty"`
-
-	// DataOnly restores only data, not schema
 	DataOnly bool `json:"dataOnly,omitempty"`
-
-	// SchemaOnly restores only schema, not data
 	SchemaOnly bool `json:"schemaOnly,omitempty"`
-
-	// Timeout for the restore operation
 	Timeout string `json:"timeout,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:default=1
+	// +optional
+	ParallelRestores int32 `json:"parallelRestores,omitempty"`
+	// +optional
+	DatabaseFilter *DatabaseFilter `json:"databaseFilter,omitempty"`
 }
 
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:generate=true
-type PostgresRestoreStatus struct {
-	// Phase represents the current phase of the restore
-	Phase string `json:"phase,omitempty"`
-
-	// Message provides additional information about the current state
-	Message string `json:"message,omitempty"`
-
-	// JobName is the name of the restore job
-	JobName string `json:"jobName,omitempty"`
-
-	// CompletionTime when the restore completed
-	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
-
-	// StartTime when the restore started
-	StartTime *metav1.Time `json:"startTime,omitempty"`
-
-	// Conditions represent the latest available observations
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+// Selector for which instances are being restored. Selected by name
+type InstanceSelector struct {
+	Names []string `json:"names,omitempty"`
+	// +optional
+	Role string `json:"role,omitempty"`
+	// +optional
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+type DatabaseFilter struct {
+	Include []string `json:"include,omitempty"`
+	// +optional
+	Exclude []string `json:"exclude,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+// Restoration status
+type PostgresRestoreStatus struct {
+	Phase string `json:"phase,omitempty"`
+	Message string `json:"message,omitempty"`
+	JobName string `json:"jobName,omitempty"`
+	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
+	StartTime *metav1.Time `json:"startTime,omitempty"`
+	WALStart string `json:"walStart,omitempty"`
+	WALEnd string `json:"walEnd,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	InstanceStatuses []InstanceRestoreStatus `json:"instanceStatuses,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:generate=true
+// Instance-specific status tracking
+type InstanceRestoreStatus struct {
+	Name string `json:"name"`
+	Phase string `json:"phase,omitempty"`
+	Message string `json:"message,omitempty"`
+	JobName string `json:"jobName,omitempty"`
+	StartTime *metav1.Time `json:"startTime,omitempty"`
+	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
+}
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 //+kubebuilder:printcolumn:name="Message",type=string,JSONPath=`.status.message`
 //+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
-// PostgresRestore is the Schema for the postgresrestore API
 type PostgresRestore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -75,7 +92,6 @@ type PostgresRestore struct {
 }
 
 //+kubebuilder:object:root=true
-// PostgresRestoreList contains a list of PostgresRestore
 type PostgresRestoreList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
