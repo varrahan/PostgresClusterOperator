@@ -79,25 +79,25 @@ func (r *PostgresBackupReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	r.setDefaults(backup)
 
 	// Reconcile the backup
-    if err := r.reconcileBackup(ctx, backup, cluster); err != nil {
-        logger.Error(err, "Failed to reconcile PostgreSQL backup")
-        backup.Status.Phase = "Failed"
-        backup.Status.Message = fmt.Sprintf("Failed to reconcile backup: %v", err)
-        if err := r.Status().Update(ctx, backup); err != nil {
-            logger.Error(err, "Failed to update backup status")
-        }
-        return ctrl.Result{}, err
-    }
+	if err := r.reconcileBackup(ctx, backup, cluster); err != nil {
+		logger.Error(err, "Failed to reconcile PostgreSQL backup")
+		backup.Status.Phase = "Failed"
+		backup.Status.Message = fmt.Sprintf("Failed to reconcile backup: %v", err)
+		if err := r.Status().Update(ctx, backup); err != nil {
+			logger.Error(err, "Failed to update backup status")
+		}
+		return ctrl.Result{}, err
+	}
 
-    return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
+	return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
 }
 
 func (r *PostgresBackupReconciler) setDefaults(backup *databasev1.PostgresBackup) {
 	if backup.Spec.Type == "" {
 		backup.Spec.Type = "full"
 	}
-	if backup.Spec.Options.Compression == "" {
-		backup.Spec.Options.Compression = "gzip"
+	if backup.Spec.Options.Compression > 9 || backup.Spec.Options.Compression < 0 {
+		backup.Spec.Options.Compression = 1
 	}
 	if backup.Spec.Options.ParallelJobs == 0 {
 		backup.Spec.Options.ParallelJobs = 1
@@ -108,11 +108,15 @@ func (r *PostgresBackupReconciler) setDefaults(backup *databasev1.PostgresBackup
 }
 
 func (r *PostgresBackupReconciler) reconcileBackup(ctx context.Context, backup *databasev1.PostgresBackup, cluster *databasev1.PostgresCluster) error {
-	// Use the internal BackupManager
+	// Determine target instance
+	targetInstance, err := r.getTargetInstance(backup, cluster)
+	if err != nil {
+		return fmt.Errorf("failed to determine target instance: %w", err)
+	}
+
+	// Use the internal BackupManager with instance context
 	backupManager := postgres.NewBackupManager(r.Client)
-	
-	// CHANGED: Call CreateBackupJob instead of CreateBackup
-	job, err := backupManager.CreateBackupJob(backup, cluster)
+	job, err := backupManager.CreateBackupJob(backup, cluster, targetInstance)
 	if err != nil {
 		return fmt.Errorf("failed to create backup job: %w", err)
 	}
@@ -122,52 +126,113 @@ func (r *PostgresBackupReconciler) reconcileBackup(ctx context.Context, backup *
 		return err
 	}
 
-	// Create or update the job using k8s utils
+	// Create or update the job
 	if err := k8s.CreateOrUpdate(ctx, r.Client, job); err != nil {
 		return fmt.Errorf("failed to create backup job: %w", err)
 	}
 
-	// Update backup status based on job status
-	return r.updateBackupStatus(ctx, backup, job)
+	// Update backup status with instance information
+	return r.updateBackupStatus(ctx, backup, job, cluster, targetInstance)
 }
 
-func (r *PostgresBackupReconciler) updateBackupStatus(ctx context.Context, backup *databasev1.PostgresBackup, job *batchv1.Job) error {
+func (r *PostgresBackupReconciler) getTargetInstance(backup *databasev1.PostgresBackup, cluster *databasev1.PostgresCluster) (*databasev1.PostgresInstanceSpec, error) {
+    // Handle legacy clusters with no instances
+    if len(cluster.Spec.Instances) == 0 {
+        return nil, nil // Signals to use cluster-wide defaults
+    }
+
+    // If no instance selector specified, default to primary
+    if backup.Spec.Instances == nil || len(backup.Spec.Instances.Names) == 0 {
+        return r.findInstanceByName(cluster, "primary")
+    }
+
+    // Handle multiple instance selection - we'll take the first valid one
+    for _, instanceName := range backup.Spec.Instances.Names {
+        instance, err := r.findInstanceByName(cluster, instanceName)
+        if err == nil {
+            return instance, nil
+        }
+        // Log the error but continue to try other names
+        log.FromContext(context.Background()).Error(err, "Instance not found, trying next", "instanceName", instanceName)
+    }
+
+    // If none of the specified instances were found, return an error
+    return nil, fmt.Errorf("none of the specified instances (%v) were found in the cluster", backup.Spec.Instances.Names)
+}
+
+func (r *PostgresBackupReconciler) findInstanceByName(cluster *databasev1.PostgresCluster, name string) (*databasev1.PostgresInstanceSpec, error) {
+    for _, instance := range cluster.Spec.Instances {
+        if instance.Name == name {
+            return &instance, nil
+        }
+    }
+    return nil, fmt.Errorf("instance %q not found in cluster", name)
+}
+
+func (r *PostgresBackupReconciler) updateBackupStatus(
+	ctx context.Context,
+	backup *databasev1.PostgresBackup,
+	job *batchv1.Job,
+	cluster *databasev1.PostgresCluster,
+	targetInstance *databasev1.PostgresInstanceSpec,
+) error {
 	// Get the current job status
 	currentJob := &batchv1.Job{}
-	err := r.Get(ctx, types.NamespacedName{Name: job.Name, Namespace: job.Namespace}, currentJob)
-	if err != nil {
+	if err := r.Get(ctx, types.NamespacedName{
+		Name:      job.Name,
+		Namespace: job.Namespace,
+	}, currentJob); err != nil {
 		return err
 	}
 
-	// Update backup status based on job status
-	if currentJob.Status.CompletionTime != nil {
+	// Initialize status with instance context
+	backup.Status.TargetInstance = "primary" // Default
+	backup.Status.Database = databasev1.DatabaseStatus{
+		Name:   cluster.Spec.Database.Name,
+		Source: "cluster", // default to cluster source
+		Exists: true,
+	}
+
+	if targetInstance != nil {
+		backup.Status.TargetInstance = targetInstance.Name
+		if targetInstance.Database != nil && targetInstance.Database.Name != "" {
+			backup.Status.Database.Name = targetInstance.Database.Name
+			backup.Status.Database.Source = "instance"
+		}
+	}
+
+	// Include instance config parameters if requested
+	if backup.Spec.IncludeInstanceConfig && targetInstance != nil && targetInstance.Config != nil {
+		backup.Status.Database.Config = targetInstance.Config
+	}
+
+	// Update phase based on job status
+	switch {
+	case currentJob.Status.CompletionTime != nil:
 		backup.Status.Phase = "Completed"
 		backup.Status.Message = "Backup completed successfully"
 		backup.Status.CompletionTime = currentJob.Status.CompletionTime
-	} else if currentJob.Status.Failed > 0 {
+	case currentJob.Status.Failed > 0:
 		backup.Status.Phase = "Failed"
 		backup.Status.Message = "Backup job failed"
-		// Try to get failure reason from job conditions
-		for _, condition := range currentJob.Status.Conditions {
-			if condition.Type == batchv1.JobFailed {
-				backup.Status.Message = fmt.Sprintf("Backup job failed: %s", condition.Message)
-				break
-			}
-		}
-	} else if currentJob.Status.Active > 0 {
+		// ... (extract failure reason from job conditions)
+	case currentJob.Status.Active > 0:
 		backup.Status.Phase = "Running"
 		backup.Status.Message = "Backup job is running"
 		if backup.Status.StartTime == nil {
 			backup.Status.StartTime = currentJob.Status.StartTime
 		}
-	} else {
+	default:
 		backup.Status.Phase = "Pending"
 		backup.Status.Message = "Backup job is pending"
 	}
 
-	// Update additional status fields
 	backup.Status.JobName = currentJob.Name
 	backup.Status.Conditions = r.buildBackupConditions(currentJob)
+
+	// TODO: Populate WAL information from backup job output
+	// backup.Status.WALStart = ...
+	// backup.Status.WALEnd = ...
 
 	return r.Status().Update(ctx, backup)
 }
