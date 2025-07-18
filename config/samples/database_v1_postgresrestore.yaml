@@ -1,0 +1,21 @@
+apiVersion: database.example.com/v1
+kind: PostgresRestore
+metadata:
+  name: pg-restore-local
+spec:
+  backupRef:
+    name: pg-backup-local 
+    namespace: default 
+  targetCluster:
+    name: pg-cluster-restored-local 
+  options:
+    dropExisting: true 
+    dataOnly: false      
+    schemaOnly: false
+    timeout: "2h"       
+    parallelRestores: 2    
+    databaseFilter:
+      include: ["appdb"] 
+      exclude: ["template0", "template1"]
+  instances:
+    names: ["primary"] 

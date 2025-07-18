@@ -1,17 +1,25 @@
 apiVersion: database.example.com/v1
 kind: PostgresBackup
 metadata:
-  name: example-backup
+  name: pg-backup-local
 spec:
   clusterRef:
-    name: example-cluster
+    name: pg-cluster-local
   type: "full"
   storage:
     type: "local"
-    config: 
-      bucket: "my-backup-bucket"
-      endpoint: "s3.amazonaws.com"
-      region: "us-east-1"
-      secretName: "s3-credentials"
+    config:
+      path: "/mnt/postgres-backups"
+      # node: "node-1"
   retentionPolicy:
-    keepLast: 5
+    keepLast: 7
+    keepDaily: 30
+    keepWeekly: 12 
+    deleteOnClusterDeletion: true
+  options:
+    compression: 6
+    encryption:
+      enabled: false
+    parallelJobs: 2
+    timeout: "1h"
+  includeInstanceConfig: true

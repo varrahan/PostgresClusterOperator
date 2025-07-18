@@ -1,24 +1,64 @@
 apiVersion: database.example.com/v1
 kind: PostgresCluster
 metadata:
-  name: example-cluster
+  name: pg-cluster-local
+  labels:
+    app.kubernetes.io/name: postgrescluster
+    app.kubernetes.io/instance: pg-cluster-local
 spec:
-  replicas: 3
   postgresVersion: "14"
+  replicas: 3
   storage:
-    size: 10Gi
-    storageClass: standard
+    size: "10Gi"
+    storageClass: "local-path"
+    accessModes: ["ReadWriteOnce"]
+  resources:
+    cpu: "500m"
+    memory: "1Gi"
   backup:
     enabled: true
     schedule: "0 0 * * *"
-    retentionPolicy: "30d"
+    retentionPolicy: "7d"
     storage:
-      type: s3
-      config: 
-        bucket: "my-backup-bucket"
-        endpoint: "s3.amazonaws.com"
-        region: "us-east-1"
-        secretName: "s3-credentials"
-  resources:
-    cpu: 500m
-    memory: 1Gi
+      type: "local"
+      config:
+        path: "/mnt/postgres-backups"
+  instances:
+    - name: "primary"
+      role: "primary"
+      storage:
+        size: "10Gi"
+        storageClass: "local-path"
+        accessModes: ["ReadWriteOnce"]
+      config:
+        shared_buffers: "1GB"
+        work_mem: "32MB"
+    - name: "replica-1"
+      role: "replica"
+      replicas: 1
+      resources:
+        cpu: "250m"
+        memory: "512Mi"
+  database:
+    name: "appdb"
+    initScript: |
+      CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+      CREATE ROLE readonly;
+    access:
+      - username: "app_user"
+        privileges: ["SELECT", "INSERT", "UPDATE"]
+      - username: "reporting_user"
+        privileges: ["SELECT"]
+        schemas:
+          - name: "reporting"
+            privileges: ["SELECT"]
+  highAvailability:
+    enabled: true
+    synchronousReplication: true
+    failoverTimeout: 30
+  monitoring:
+    enabled: true
+    prometheus:
+      enabled: true
+      port: 9187
+      path: "/metrics"
