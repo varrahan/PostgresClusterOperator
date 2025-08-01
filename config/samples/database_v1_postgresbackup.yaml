@@ -9,8 +9,7 @@ spec:
   storage:
     type: "local"
     config:
-      path: "/mnt/postgres-backups"
-      # node: "node-1"
+      path: "/data/postgres-backups"
   retentionPolicy:
     keepLast: 7
     keepDaily: 30

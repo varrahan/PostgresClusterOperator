@@ -22,7 +22,7 @@ spec:
     storage:
       type: "local"
       config:
-        path: "/mnt/postgres-backups"
+        path: "/data/postgres-backups"
   instances:
     - name: "primary"
       role: "primary"

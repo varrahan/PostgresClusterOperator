@@ -1,5 +1,3 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -31,3 +29,7 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Secret folders
+config/samples/local-secret.yaml
+local-storage/

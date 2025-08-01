@@ -8,7 +8,7 @@ namespace: postgres-operator-system
 # Configure image overrides
 images:
 - name: controller
-  newName: localhost:5000/postgres-operator
+  newName: postgres-operator
   newTag: latest
 - name: postgres-operator
   newName: your-registry/postgres-operator
