@@ -1,8 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres-operator-controller-manager
-  namespace: postgres-operator-system
+  name: controller-manager
+  namespace: system
   labels:
     app.kubernetes.io/name: postgres-operator
     app.kubernetes.io/component: controller
@@ -25,7 +25,7 @@ spec:
         fsGroup: 65532
       containers:
       - name: manager
-        image: controller:latest  # Will be overridden by kustomize
+        image: controller:latest
         command:
         - /manager
         args:
@@ -65,5 +65,9 @@ spec:
           requests:
             cpu: 100m
             memory: 128Mi
-      serviceAccountName: postgres-operator-controller-manager
+      serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          secretName: webhook-server-cert
