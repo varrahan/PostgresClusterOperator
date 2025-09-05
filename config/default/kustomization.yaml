@@ -28,7 +28,6 @@ configMapGenerator:
 # Set namespace for all resources
 namespace: postgres-operator-system
 
-# Common labels for all resources
 labels:
 - pairs:
     app.kubernetes.io/name: postgres-operator
