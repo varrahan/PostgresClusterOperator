@@ -70,7 +70,7 @@ func (r *PostgresUserReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Get target instances
-	targetInstances, err := r.getTargetInstances(ctx, user, cluster)
+	targetInstances, err := r.getTargetInstances(user, cluster)
 	if err != nil {
 		if updateErr := r.updateStatus(ctx, user, databasev1.PostgresUserStatus{
 			Phase:   "Failed",
@@ -138,7 +138,7 @@ func (r *PostgresUserReconciler) getCluster(ctx context.Context, user *databasev
 	return cluster, nil
 }
 
-func (r *PostgresUserReconciler) getTargetInstances(ctx context.Context, user *databasev1.PostgresUser, cluster *databasev1.PostgresCluster) ([]string, error) {
+func (r *PostgresUserReconciler) getTargetInstances(user *databasev1.PostgresUser, cluster *databasev1.PostgresCluster) ([]string, error) {
 	// If no instance selector specified, return all instances
 	if user.Spec.InstanceSelector == nil {
 		var instances []string
