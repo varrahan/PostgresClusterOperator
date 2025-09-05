@@ -8,5 +8,5 @@ roleRef:
   name: metrics-reader
 subjects:
 - kind: ServiceAccount
-  name: postgres-operator-manager
-  namespace: postgres-operator-system
+  name: controller-manager
+  namespace: system
