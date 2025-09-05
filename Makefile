@@ -67,16 +67,26 @@ uninstall: manifests kustomize
 
 ## Deploy controller to the cluster
 .PHONY: deploy
-deploy: manifests kustomize
+deploy: install manifests kustomize
 	cd $(CONFIG_DIR)/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build $(CONFIG_DIR)/default | kubectl apply -f -
+	$(KUSTOMIZE) build $(CONFIG_DIR)/default > deploy.yaml
+	@trap "rm -f deploy.yaml" EXIT; \
+	if ! kubectl apply -f deploy.yaml; then \
+		echo "Error: kubectl apply failed"; exit 1; \
+	fi; \
+	echo "Waiting for deployment (timeout 60s)..."; \
+	if ! kubectl rollout status deployment $(PROJECT_NAME)-controller-manager -n $(NAMESPACE) --timeout=60s; then \
+		echo "Error: Rollout timed out. Check logs with: make logs"; \
+		exit 1; \
+	fi; \
+	echo "Deployment successful"
 
 ## Undeploy controller from the cluster
 .PHONY: undeploy
 undeploy: kustomize
 	$(KUSTOMIZE) build $(CONFIG_DIR)/default | kubectl delete -f -
 
-## Run the operator locally (requires cluster connection)
+## Run the operator locally
 .PHONY: run
 run: manifests generate
 	$(GO) run ./main.go
