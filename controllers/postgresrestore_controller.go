@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -297,6 +297,8 @@ func (r *PostgresRestoreReconciler) createRestoreJob(
 		return nil, fmt.Errorf("failed to build restore command: %w", err)
 	}
 
+	// Var for BackoffLimit
+	BackoffLimitPtrVal := int32(0)
 	// Create job object
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -312,7 +314,7 @@ func (r *PostgresRestoreReconciler) createRestoreJob(
 			},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: pointer.Int32(0),
+			BackoffLimit: ptr.To(BackoffLimitPtrVal),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
