@@ -10,14 +10,7 @@ resources:
 - postgrescluster_editor_role.yaml
 - postgrescluster_viewer_role.yaml
 
-# Set namespace for all resources
-namespace: postgres-operator-system
-
-# Common labels
 labels:
 - pairs:
     app.kubernetes.io/name: postgres-operator
     app.kubernetes.io/component: rbac
-
-# Name prefix for generated resources
-namePrefix: postgres-operator-
