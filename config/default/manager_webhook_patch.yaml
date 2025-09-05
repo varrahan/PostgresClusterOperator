@@ -2,14 +2,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres-operator-controller-manager
+  name: controller-manager
 spec:
   template:
     spec:
       containers:
       - name: manager
-        args:
-        - "--enable-webhooks=true"
         ports:
         - containerPort: 9443
           name: webhook-server
