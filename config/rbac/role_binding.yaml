@@ -11,5 +11,5 @@ roleRef:
   name: manager-role
 subjects:
 - kind: ServiceAccount
-  name: postgres-operator-manager
-  namespace: postgres-operator-system
+  name: controller-manager
+  namespace: system
